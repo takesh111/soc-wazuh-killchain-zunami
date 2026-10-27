@@ -1,0 +1,149 @@
+<!-- Local rules -->
+
+<!-- Modify it at your will. -->
+<!-- Copyright (C) 2015, Wazuh Inc. -->
+
+<!-- Example -->
+<group name="local,syslog,sshd,">
+
+  <!--
+  Dec 10 01:02:02 host sshd[1234]: Failed none for root from 1.1.1.1 port 1066 ssh2
+  -->
+  <rule id="100001" level="5">
+    <if_sid>5716</if_sid>
+    <srcip>1.1.1.1</srcip>
+    <description>sshd: authentication failed from IP 1.1.1.1.</description>
+    <group>authentication_failed,pci_dss_10.2.4,pci_dss_10.2.5,</group>
+  </rule>
+
+<rule id="100100" level="10" frequency="6" timeframe="120">
+  <if_matched_group>authentication_failed</if_matched_group>
+  <same_field>win.eventdata.targetUserName</same_field>
+  <description>Windows brute force attack: multiple failed logons for same user</description>
+  <mitre>
+    <id>T1110</id>
+  </mitre>
+</rule>
+
+<rule id="100101" level="12" timeframe="300">
+  <if_matched_sid>100100</if_matched_sid>
+  <if_sid>60106,60118,92652</if_sid>
+  <field name="win.eventdata.logonType">^2$|^3$|^10$</field>
+  <same_field>win.eventdata.targetUserName</same_field>
+  <description>CRITICAL: Successful Windows logon after brute force - possible compromise</description>
+  <mitre>
+    <id>T1110</id>
+    <id>T1078</id>
+  </mitre>
+  <group>authentication_success,attack</group>
+</rule>
+
+<rule id="100200" level="14">
+  <if_sid>61612</if_sid>
+  <field name="win.eventdata.targetImage" type="pcre2">(?i)\\lsass\.exe$</field>
+  <field name="win.eventdata.sourceImage" negate="yes" type="pcre2">(?i)MsMpEng\.exe|wazuh|MsSense\.exe</field>
+  <field name="win.eventdata.grantedAccess" type="pcre2">(?i)0x1010|0x1410|0x1438|0x143a|0x1fffff</field>
+  <description>Подозрительный доступ к памяти LSASS: $(win.eventdata.sourceImage) (возможен дамп учётных данных)</description>
+  <mitre>
+    <id>T1003.001</id>
+  </mitre>
+  <group>credential_access,attack,</group>
+</rule>
+
+<rule id="100210" level="13">
+  <if_sid>61603</if_sid>
+  <field name="win.eventdata.image" type="pcre2">(?i)\\powershell(_ise)?\.exe$</field>
+  <field name="win.eventdata.commandLine" type="pcre2">(?i)-nop\b|-noprofile|-w\s+hidden|-windowstyle\s+hidden|-ep\s+bypass|-executionpolicy\s+bypass|downloadstring|downloadfile|iex\b|invoke-expression|frombase64string</field>
+  <description>Подозрительный запуск PowerShell: $(win.eventdata.commandLine)</description>
+  <mitre>
+    <id>T1059.001</id>
+  </mitre>
+  <group>execution,attack,</group>
+</rule>
+
+<rule id="100300" level="12" frequency="6" timeframe="120">
+  <if_matched_group>authentication_failed</if_matched_group>
+  <different_field>win.eventdata.targetUserName</different_field>
+  <description>Password spraying: неудачные входы по разным учёткам за короткое окно</description>
+  <mitre>
+    <id>T1110.003</id>
+  </mitre>
+  <group>authentication_failed,attack,</group>
+</rule>
+
+<rule id="100400" level="12">
+  <if_group>windows</if_group>
+  <field name="win.system.eventID">^4769$</field>
+  <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+  <field name="win.eventdata.serviceName" negate="yes" type="pcre2">(?i)krbtgt|\$$</field>
+  <description>Возможный Kerberoasting: запрос TGS-билета с шифрованием RC4 (0x17) для сервиса $(win.eventdata.serviceName)</description>
+  <mitre>
+    <id>T1558.003</id>
+  </mitre>
+  <group>credential_access,attack</group>
+</rule>
+
+<rule id="100500" level="12">
+  <if_sid>60110</if_sid>
+  <field name="win.eventdata.userAccountControl" type="pcre2">2096</field>
+  <description>AS-REP roasting risk: у учётки $(win.eventdata.targetUserName) включён DONT_REQ_PREAUTH (отключена преаутентификация Kerberos)</description>
+  <mitre>
+    <id>T1558.004</id>
+  </mitre>
+  <group>credential_access,policy_changed,attack</group>
+</rule>
+
+<rule id="100600" level="13">
+  <if_sid>92657,92652</if_sid>
+  <field name="win.eventdata.targetUserName" type="pcre2" negate="yes">\$$</field>
+  <field name="win.eventdata.ipAddress" type="pcre2" negate="yes">^(::1|127\.0\.0\.1)$</field>
+  <description>Pass-the-Hash: NTLM сетевой вход под доменной учёткой $(win.eventdata.targetUserName) с $(win.eventdata.ipAddress)</description>
+  <mitre>
+    <id>T1550.002</id>
+  </mitre>
+  <group>authentication_success,lateral_movement,attack,</group>
+</rule>
+
+<rule id="100700" level="13">
+  <if_sid>61138</if_sid>
+  <field name="win.eventdata.imagePath" type="pcre2">(?i)\\temp\\|\\users\\|\\programdata\\|\\appdata\\|cmd\.exe|powershell|-enc|frombase64|\\\\|downloadstring|regsvr32|rundll32</field>
+  <description>Подозрительная служба для закрепления: $(win.eventdata.serviceName) → $(win.eventdata.imagePath)</description>
+  <mitre>
+    <id>T1543.003</id>
+  </mitre>
+  <group>presistence,attack</group>
+</rule>
+
+<rule id="100800" level="13">
+  <if_sid>63103</if_sid>
+  <description>КРИТИЧНО: очищен журнал безопасности пользователем $(win.logFileCleared.subjectUserName) — возможное сокрытие следов</description>
+  <mitre>
+    <id>T1070.001</id>
+  </mitre>
+  <group>defense_evasion,attack</group>
+</rule>
+
+<rule id="100900" level="14">
+  <if_sid>60159,60160,60161</if_sid>
+  <description>КРИТИЧНО: $(win.eventdata.memberName) добавлен в привелигированную группу $(win.eventdata.targetUserName) пользователем $(data.win.eventdata.subjectUserName)</description>
+  <mitre>
+    <id>T1098</id>
+    <id>T1078.002</id>
+  </mitre>
+  <group>privelege_escalation,persistence,attack</group>
+</rule>
+
+<rule id="101000" level="14">
+  <if_sid>60103</if_sid>
+  <field name="win.system.eventID">^4662$</field>
+  <field name="win.eventdata.properties" type="pcre2">1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c</field>
+  <field name="win.eventdata.subjectUserName" type="pcre2" negate="yes">\$$</field>
+  <description>КРИТИЧНО: возможный DCSync - запрос репликации домена от $(win.eventdata.subjectUserName) (кража хешей паролей)</description>
+  <mitre>
+    <id>T1003.006</id>
+  </mitre>
+  <group>credential_access,attack</group>
+</rule>
+
+
+</group>

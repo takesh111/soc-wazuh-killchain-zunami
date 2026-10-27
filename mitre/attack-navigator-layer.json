@@ -1,0 +1,127 @@
+{
+  "name": "zunami.lab — Kill Chain Detection Coverage",
+  "versions": {
+    "attack": "20",
+    "navigator": "5.1.0",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Покрытие детектом Wazuh сквозной kill chain на стенде zunami.lab (SOC-капстоун, KSC-SRV). Зелёным — техники, пойманные правилами корреляции 100300-101000; красным — точка компрометации (DCSync). Автор: Богданов А.В.",
+  "filters": {
+    "platforms": ["Windows"]
+  },
+  "sorting": 0,
+  "layout": {
+    "layout": "side",
+    "aggregateFunction": "average",
+    "showID": true,
+    "showName": true,
+    "showAggregateScores": false,
+    "countUnscored": false
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1110.003",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 1 — Password spraying. Правило 100300, Security 4625.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1110",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 2 — Брутфорс bruteuser. Правило 100100, Security 4625.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1078",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 2 — успешный вход bruteuser. Правило 100600 (сетевой NTLM), Security 4624.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1078.002",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 9 — злоупотребление доменной учёткой в привил. группе. Правило 100900.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1059.001",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 3 — обфусцированный PowerShell (-nop -w hidden -enc). Правило 100210, Sysmon EID 1.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1558.003",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 4 — Kerberoasting. Правило 100400, Security 4769 (0x17 RC4).",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1003.001",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 5 — дамп LSASS (procdump). Правило 100200, Sysmon EID 10.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1550.002",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 6 — Pass-the-Hash под Администратором. Правило 100600, Security 4624 NTLM type 3.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1003.006",
+      "score": 100,
+      "color": "#b71c1c",
+      "comment": "Этап 7 — DCSync (ТОЧКА КОМПРОМЕТАЦИИ ДОМЕНА, кража krbtgt). Правило 101000, Security 4662. Зависит от аудита Directory Service Access + SACL.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1543.003",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 8 — вредоносная служба «Windows Update Helper». Правило 100700, System 7045 (+Security 4697 для атрибуции).",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1098",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 9 — eviladmin → Domain Admins (RID 512). Правило 100900, Security 4728.",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1070.001",
+      "score": 100,
+      "color": "#2e7d32",
+      "comment": "Этап 10 — очистка журнала Security (wevtutil cl). Правило 100800, Security 1102.",
+      "enabled": true
+    }
+  ],
+  "gradient": {
+    "colors": ["#ffffff", "#8ec843", "#2e7d32"],
+    "minValue": 0,
+    "maxValue": 100
+  },
+  "legendItems": [
+    { "label": "Поймано детектом Wazuh", "color": "#2e7d32" },
+    { "label": "Точка компрометации домена (DCSync)", "color": "#b71c1c" }
+  ],
+  "metadata": [
+    { "name": "Стенд", "value": "zunami.lab / KSC-SRV / Wazuh 4.9.2 / Kali" },
+    { "name": "Покрытие", "value": "6 тактик, 10 техник, 10/10 пойманы" },
+    { "name": "Источники", "value": "Windows Security audit, Sysmon (EID 1,10), System log (7045)" }
+  ],
+  "showTacticRowBackground": true,
+  "tacticRowBackground": "#205b8f",
+  "selectTechniquesAcrossTactics": true,
+  "selectSubtechniquesWithParent": false
+}
